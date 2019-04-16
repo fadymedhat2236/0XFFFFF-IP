@@ -2,30 +2,7 @@ import requests
 import json
 class OCRSpaceLanguage:
     Arabic = 'ara'
-    Bulgarian = 'bul'
-    Chinese_Simplified = 'chs'
-    Chinese_Traditional = 'cht'
-    Croatian = 'hrv'
-    Danish = 'dan'
-    Dutch = 'dut'
     English = 'eng'
-    Finnish = 'fin'
-    French = 'fre'
-    German = 'ger'
-    Greek = 'gre'
-    Hungarian = 'hun'
-    Korean = 'kor'
-    Italian = 'ita'
-    Japanese = 'jpn'
-    Norwegian = 'nor'
-    Polish = 'pol'
-    Portuguese = 'por'
-    Russian = 'rus'
-    Slovenian = 'slv'
-    Spanish = 'spa'
-    Swedish = 'swe'
-    Turkish = 'tur'
-
 
 class OCRSpace:
     def __init__(self, api_key, language=OCRSpaceLanguage.English):
@@ -52,19 +29,6 @@ class OCRSpace:
                 files={filename: f},
                 data=self.payload,
             )
-        return r.json()
-
-    def ocr_url(self, url):
-        """ OCR.space API request with remote file
-        :param url: Image url
-        :return: Result in JSON format.
-        """
-        data = self.payload
-        data['url'] = url
-        r = requests.post(
-            'https://api.ocr.space/parse/image',
-            data=data,
-        )
         return r.json()
 
 
