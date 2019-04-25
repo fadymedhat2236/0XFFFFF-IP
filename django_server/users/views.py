@@ -28,7 +28,13 @@ def register(request):
 			name, studentId, nationalId = analyze_image(studentIdImage, nationalIdImage)
 			student = Student.objects.filter(student_id = studentId)
 
-			if not student:
+			success = False
+
+			if student:
+				if student.first().national_id==nationalId:
+					success = True
+
+			if not success:
 				messages.error(request, f"user wasn't verified correctly.. entered student id is {studentId} and entered national id is {nationalId}")
 			else:
 				user = User(username=username, email=email, password=password, studentIdImage=studentIdRawImage, nationalIdImage=nationalIdRawImage)
