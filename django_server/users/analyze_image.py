@@ -2,7 +2,10 @@
 import numpy as np
 import cv2
 import imutils
-
+from ocr_pkg.ocr import OCRSpace,OCRSpaceLanguage
+import base64
+from io import BytesIO
+from PIL import Image
 
 #PARAMETERS
 GAUSSIAN_KERNEL_SIZE = 5
@@ -59,7 +62,11 @@ def get_card(image):
 	edges = cv2.Canny(gray_blured, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
 	kernel = np.ones((DILATION_KERNEL_SIZE,DILATION_KERNEL_SIZE),np.uint8)
 	edges = cv2.dilate(edges,kernel)
-	
+	"""
+	cv2.imshow("step1",edges)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	"""
 	#contour and get the largest 5 contours
 	cnts = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	cnts = imutils.grab_contours(cnts)
@@ -73,16 +80,89 @@ def get_card(image):
 			card = shape
 			break
 	cv2.drawContours(image, [card], -1, (0, 255, 0), 2)
-	
+	"""
+	cv2.imshow("step2", image)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	"""
 	cropped = four_point_transform(original, card.reshape(4, 2))
 	cropped_gray = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
 	words = cv2.adaptiveThreshold(cropped_gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,ADATIVE_SIZE,ADAPTIVE_C)
-	
-	
+	"""
+	cv2.imshow("step3",cropped_gray)
+	cv2.imshow("step3",words)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	"""
+	#return the card image only
+	#cv2.imwrite('image.jpg',words)
 	return words
-	
-	
+
+# functions for dealing with the ocr response
+def leftCompare(element):
+	return element[2]
+def all_arabic_numbers(element): 
+	arabic_numbers_array= [u'\u0660',u'\u0661',u'\u0662',u'\u0663',u'\u0664',u'\u0665',u'\u0666',u'\u0667',u'\u0668',u'\u0669']
+	length = len(element)
+	if length == 0:
+		return False
+	for i in range(length):
+		if element[i] not in arabic_numbers_array:
+			return False
+	return True
+def to_english(id):
+	translate = {u'\u0660':0,u'\u0661':1,u'\u0662':2,u'\u0663':3,u'\u0664':4,u'\u0665':5,u'\u0666':6,u'\u0667':7,u'\u0668':8,u'\u0669':9}
+	en_id=""
+	for x in id:
+		en_id+=str(translate[x])
+	return en_id
+
+def get_lines(image,sort=True):
+	# turn numpy array image into a base64 encoded string
+	pil_img = Image.fromarray(image)
+	buff = BytesIO()
+	pil_img.save(buff, format="JPEG")
+	new_image_string = base64.b64encode(buff.getvalue()).decode("utf-8")
+	# call ocr api
+	API_KEY = 'e9925d2b1f88957'
+	results = OCRSpace(API_KEY,new_image_string,OCRSpaceLanguage.Arabic).get_lines()
+	# re-arrange the lines
+	length = results[len(results)-1][0] + 1
+	lines = []
+	for i in range(length):
+		line = [n for n in results if n[0]==i]
+		if sort:
+			line = sorted(line,key=leftCompare) 
+			lines.append(''.join([x[1] for x in line]))
+		else:
+			#to keep the space that splits the name 
+			lines.append(' '.join([x[1] for x in line]))
+	return lines
+def get_national_id(lines):
+	for i in range(len(lines)):
+		if all_arabic_numbers(lines[i]):
+			return lines[i]
+def get_faculty_id_name(lines):
+	# assume length of name > 12 and start search from above
+	name = ""
+	name_index = 0
+	for i in range(len(lines)):
+		if(len(lines[i])) > 12:
+			name=lines[i]
+			name_index = i
+			break
+	faculty_id = ""
+	# search for 7 digits in the line beneath the name
+	for i in range(len(lines[name_index+1])):
+		if lines[name_index+1][i:i+7].isnumeric():
+			faculty_id = lines[name_index+1][i:i+7]
+			break
+	return faculty_id,name
+
 def analyze_image(studentIdImage, nationalIdImage):
 	student_card = get_card(studentIdImage)
 	national_card = get_card(nationalIdImage)
-	return 'name','faculty_id','national_id'
+	national_id = get_national_id(get_lines(national_card))
+	faculty_id,name = get_faculty_id_name(get_lines(student_card,False))
+	print(name,faculty_id,to_english(national_id))
+	return name,faculty_id,to_english(national_id)
