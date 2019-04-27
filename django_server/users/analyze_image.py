@@ -164,5 +164,5 @@ def analyze_image(studentIdImage, nationalIdImage):
 	national_card = get_card(nationalIdImage)
 	national_id = get_national_id(get_lines(national_card))
 	faculty_id,name = get_faculty_id_name(get_lines(student_card,False))
-	print(name,faculty_id,to_english(national_id))
+	#print(name,faculty_id,to_english(national_id))
 	return name,faculty_id,to_english(national_id)

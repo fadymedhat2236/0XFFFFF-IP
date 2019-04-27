@@ -37,9 +37,10 @@ def register(request):
 			if not success:
 				messages.error(request, f"user wasn't verified correctly.. entered student id is {studentId} and entered national id is {nationalId}")
 			else:
-				user = User(username=username, email=email, password=password, studentIdImage=studentIdRawImage, nationalIdImage=nationalIdRawImage)
+				user = User(username=username, email=email, password=password,
+				 studentIdImage=studentIdRawImage, nationalIdImage=nationalIdRawImage, student_id=student.first())
 				user.save()
-				messages.success(request, f'Account created for {name}')
+				messages.success(request, f'Account created for {student.first().name}')
 				return redirect('blog-home')
 
 			
