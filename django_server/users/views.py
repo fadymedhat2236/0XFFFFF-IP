@@ -70,7 +70,7 @@ def compare_national_ids(db_id,photo_id):
 	j=0
 	for i in range(len(photo_id)):
 		if photo_id[i]==db_id[j]:
-			no_of_matched++
+			no_of_matched+=1
 			j+=1
 		else:
 			while photo_id[i]!=db_id[j] and j<len(db_id):
@@ -78,7 +78,7 @@ def compare_national_ids(db_id,photo_id):
 			if(j==len(db_id)):
 				break
 			else:
-				no_of_matched++
+				no_of_matched+=1
 				j+=1
 
 		
