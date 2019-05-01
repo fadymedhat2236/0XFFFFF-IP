@@ -25,25 +25,34 @@ def register(request):
 			studentIdImage = cv2.imdecode(np.fromstring(form.cleaned_data.get('studentIdImage').read(), np.uint8), cv2.IMREAD_UNCHANGED)
 			nationalIdImage = cv2.imdecode(np.fromstring(form.cleaned_data.get('nationalIdImage').read(), np.uint8), cv2.IMREAD_UNCHANGED)
 
-			name, studentId, nationalId = analyze_image(studentIdImage, nationalIdImage)
-			student = Student.objects.filter(student_id = studentId)
-
-			success = False
-
-			if student:
-				if student.first().national_id==nationalId:
-					success = True
-
-			if not success:
-				messages.error(request, f"user wasn't verified correctly.. entered student id is {studentId} and entered national id is {nationalId}")
+			list = analyze_image(studentIdImage, nationalIdImage)
+			if list[0] != True:
+				messages.error(request, list[0])
 			else:
-				user = User(username=username, email=email, password=password,
-				 studentIdImage=studentIdRawImage, nationalIdImage=nationalIdRawImage, student_id=student.first())
-				user.save()
-				messages.success(request, f'Account created for {student.first().name}')
-				return redirect('blog-home')
+				name=list[1]
+				studentId=list[2]
+				nationalId=list[3]
 
-			
+				student = Student.objects.filter(student_id = studentId)
+				success = False
+				if student:
+
+					
+					result=compare_national_ids(student.first().national_id,nationalId)
+					if result:
+						success=True
+
+					if not success:
+						messages.error(request, f"user wasn't verified correctly.. entered student id is {studentId} and entered national id is {nationalId}")
+				
+					else:
+						user = User(username=username, email=email, password=password,
+				 		studentIdImage=studentIdRawImage, nationalIdImage=nationalIdRawImage, student_id=student.first())
+						user.save()
+						messages.success(request, f'Account created for {student.first().name}')
+						return redirect('blog-home')
+
+
 		# else:
 		# 	print("NO")
 		# 	print(form.cleaned_data)
@@ -52,3 +61,29 @@ def register(request):
 	else:
 		form = UserRegisterForm()
 	return render(request, 'users/register.html', {'form' : form})
+
+def compare_national_ids(db_id,photo_id):
+	print(photo_id)
+	print(db_id)
+	no_of_matched=0
+
+	j=0
+	for i in range(len(photo_id)):
+		if photo_id[i]==db_id[j]:
+			no_of_matched++
+			j+=1
+		else:
+			while photo_id[i]!=db_id[j] and j<len(db_id):
+				j+=1
+			if(j==len(db_id)):
+				break
+			else:
+				no_of_matched++
+				j+=1
+
+		
+	print(no_of_matched)
+	if no_of_matched>=8:
+		return True
+	else:
+		return False
