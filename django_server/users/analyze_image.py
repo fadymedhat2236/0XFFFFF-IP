@@ -199,9 +199,11 @@ def analyze_image(studentIdImage, nationalIdImage):
 	if ret[0]==False:
 		return 'please take another photo of your national card'
 	national_card = ret[1]
-	n = get_lines(national_card)
+	#n = get_lines(national_card)
 	f = get_lines(student_card,False)
-	n_id =  get_national_id(n)
+	n_id =  get_lines(national_card)[0]
 	f_id,name =  get_faculty_id_name(f)
+	print(n_id)
+	print(f_id)
 	return True,name,f_id,to_english(n_id)
 	
