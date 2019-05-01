@@ -73,13 +73,13 @@ def get_card(image):
 	cnts = sorted(cnts, key = cv2.contourArea, reverse = True)[:5]
 
 	#find the card contour
-	Found = False
+	found = False
 	for c in cnts:
 		epsilon =  EPSILON_TORELANCE*cv2.arcLength(c, True)
 		approx = cv2.approxPolyDP(c,epsilon, True)
 		if len(approx) == 4:
 			card = approx
-			Found = True
+			found = True
 			break
 	if found == False:
 		return False
