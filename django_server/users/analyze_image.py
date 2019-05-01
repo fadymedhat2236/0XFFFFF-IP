@@ -14,7 +14,7 @@ CANNY_MAX_THRESH = 200
 DILATION_KERNEL_SIZE = 5
 EPSILON_TORELANCE = 0.02
 ADATIVE_SIZE = 11
-ADAPTIVE_C = 7
+ADAPTIVE_C = 10
 
 def order_points(pts):
 	# return is array of pts ordered as top_left,top_right,bottom_right,bottom_left
@@ -73,12 +73,16 @@ def get_card(image):
 	cnts = sorted(cnts, key = cv2.contourArea, reverse = True)[:5]
 
 	#find the card contour
+	Found = False
 	for c in cnts:
 		epsilon =  EPSILON_TORELANCE*cv2.arcLength(c, True)
-		shape = cv2.approxPolyDP(c,epsilon, True)
-		if len(shape) == 4:
-			card = shape
+		approx = cv2.approxPolyDP(c,epsilon, True)
+		if len(approx) == 4:
+			card = approx
+			Found = True
 			break
+	if found == False:
+		return False
 	cv2.drawContours(image, [card], -1, (0, 255, 0), 2)
 	"""
 	cv2.imshow("step2", image)
@@ -88,15 +92,15 @@ def get_card(image):
 	cropped = four_point_transform(original, card.reshape(4, 2))
 	cropped_gray = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
 	words = cv2.adaptiveThreshold(cropped_gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,ADATIVE_SIZE,ADAPTIVE_C)
+	
 	"""
-	cv2.imshow("step3",cropped_gray)
 	cv2.imshow("step3",words)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
 	"""
 	#return the card image only
 	#cv2.imwrite('image.jpg',words)
-	return words
+	return True,words
 
 # functions for dealing with the ocr response
 def leftCompare(element):
@@ -114,12 +118,30 @@ def to_english(id):
 	translate = {u'\u0660':0,u'\u0661':1,u'\u0662':2,u'\u0663':3,u'\u0664':4,u'\u0665':5,u'\u0666':6,u'\u0667':7,u'\u0668':8,u'\u0669':9}
 	en_id=""
 	for x in id:
-		en_id+=str(translate[x])
+		if x in translate:
+			en_id+=str(translate[x])
 	return en_id
 
 def get_lines(image,sort=True):
 	# turn numpy array image into a base64 encoded string
-	pil_img = Image.fromarray(image)
+	#get portion of image
+	kernel = np.ones((3,3),np.uint8)
+	if sort:
+		im = image[int(image.shape[0]*2.9/4):int(image.shape[0]*3.7/4),int(image.shape[1]*1.2/3):]
+		im = cv2.pyrUp(im)
+		im = cv2.morphologyEx(255-im, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)))
+		#cv2.imwrite('N_num.jpg',im)
+	else:
+		im = image[int(image.shape[0]*0.4):int(image.shape[0]*0.8),:int(image.shape[1]*0.8)]
+		im = cv2.pyrUp(im)
+		im = cv2.morphologyEx(im, cv2.MORPH_OPEN, kernel)
+		#cv2.imwrite('F_num.jpg',im)
+	"""
+	cv2.imshow('portion',im)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	"""
+	pil_img = Image.fromarray(im)
 	buff = BytesIO()
 	pil_img.save(buff, format="JPEG")
 	new_image_string = base64.b64encode(buff.getvalue()).decode("utf-8")
@@ -138,8 +160,11 @@ def get_lines(image,sort=True):
 			#to keep the space that splits the name 
 			lines.append(' '.join([x[1] for x in line]))
 	return lines
+	
+	
 def get_national_id(lines):
 	for i in range(len(lines)):
+		#print lines[i]
 		if all_arabic_numbers(lines[i]):
 			return lines[i]
 def get_faculty_id_name(lines):
@@ -147,22 +172,36 @@ def get_faculty_id_name(lines):
 	name = ""
 	name_index = 0
 	for i in range(len(lines)):
-		if(len(lines[i])) > 12:
+		if((len(lines[i])) > 8) and (lines[i][len(lines[i])-1].isnumeric()==False):
 			name=lines[i]
 			name_index = i
 			break
+	#print(lines[name_index],"   " ,name_index)
+	#print lines
+	
 	faculty_id = ""
 	# search for 7 digits in the line beneath the name
-	for i in range(len(lines[name_index+1])):
-		if lines[name_index+1][i:i+7].isnumeric():
-			faculty_id = lines[name_index+1][i:i+7]
-			break
+	for j in range(name_index+1,len(lines)):
+		for i in range(0,len(lines[j])):
+			#print lines[j][i]
+			if lines[j][i].isnumeric():
+				faculty_id = lines[j][i:i+7]
+				break
+	#print faculty_id
 	return faculty_id,name
 
 def analyze_image(studentIdImage, nationalIdImage):
-	student_card = get_card(studentIdImage)
-	national_card = get_card(nationalIdImage)
-	national_id = get_national_id(get_lines(national_card))
-	faculty_id,name = get_faculty_id_name(get_lines(student_card,False))
-	#print(name,faculty_id,to_english(national_id))
-	return name,faculty_id,to_english(national_id)
+	ret = get_card(studentIdImage)
+	if ret[0]==False:
+		return 'please take another photo of your faculty card'
+	student_card = ret[1]
+	ret = get_card(nationalIdImage)
+	if ret[0]==False:
+		return 'please take another photo of your national card'
+	national_card = ret[1]
+	n = get_lines(national_card)
+	f = get_lines(student_card,False)
+	n_id =  get_national_id(n)
+	f_id,name =  get_faculty_id_name(f)
+	return 'True',name,f_id,to_english(n_id)
+	

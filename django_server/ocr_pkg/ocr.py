@@ -45,7 +45,7 @@ class OCRSpace:
                 top.append(current['Top'])
         #print words_locations
         #print top
-        TOLERANCE = 10
+        TOLERANCE = 24
         same_line = []
         #assuming words that are together comes after each other in the array
         i = 0 #top and words_locations array index
