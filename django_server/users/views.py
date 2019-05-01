@@ -15,6 +15,7 @@ def register(request):
 	if request.method == 'POST':
 		form = UserRegisterForm(request.POST, request.FILES)
 		if form.is_valid():
+			print('form is valid')
 			username = form.cleaned_data['username']
 			email = form.cleaned_data['email']
 			password = make_password(form.cleaned_data['password1'])
@@ -27,18 +28,22 @@ def register(request):
 
 			list = analyze_image(studentIdImage, nationalIdImage)
 			if list[0] != True:
-				messages.error(request, list[0])
+				messages.error(request, f"list[0]")
 			else:
+				print('here')
 				name=list[1]
 				studentId=list[2]
 				nationalId=list[3]
-
+				print(name)
+				print(studentId)
+				print(nationalId)
 				student = Student.objects.filter(student_id = studentId)
 				success = False
 				if student:
 
 					
 					result=compare_national_ids(student.first().national_id,nationalId)
+					print(result)
 					if result:
 						success=True
 
@@ -52,7 +57,8 @@ def register(request):
 						messages.success(request, f'Account created for {student.first().name}')
 						return redirect('blog-home')
 
-
+				else:
+					messages.success(request, f'error could not match in databse')
 		# else:
 		# 	print("NO")
 		# 	print(form.cleaned_data)
