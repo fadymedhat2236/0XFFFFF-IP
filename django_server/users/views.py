@@ -30,13 +30,9 @@ def register(request):
 			if list[0] != True:
 				messages.error(request, f"list[0]")
 			else:
-				print('here')
 				name=list[1]
 				studentId=list[2]
 				nationalId=list[3]
-				print(name)
-				print(studentId)
-				print(nationalId)
 				student = Student.objects.filter(student_id = studentId)
 				success = False
 				if student:
@@ -78,7 +74,7 @@ def compare_national_ids(db_id,photo_id):
 		for i in range(len(photo_id)):
 			if photo_id[i]==db_id[i]:
 				no_of_matched+=1
-	else:
+	elif len(photo_id)==len(db_id):
 		j=0
 		for i in range(len(photo_id)):
 			if photo_id[i]==db_id[j]:
@@ -93,7 +89,20 @@ def compare_national_ids(db_id,photo_id):
 				else:
 					no_of_matched+=1
 					j+=1
-
+	else:
+		j=0
+		for i in range(len(db_id)):
+			if db_id[i]==photo_id[j]:
+				no_of_matched+=1
+				j+=1
+			else:
+				while db_id[i]!=photo_id[j] and j<len(photo_id):
+					j+=1
+				if(j==len(photo_id)):
+					break
+				else:
+					no_of_matched+=1
+					j+=1	
 		
 	print(no_of_matched)
 	if no_of_matched>=8:
