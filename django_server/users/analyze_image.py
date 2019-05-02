@@ -68,7 +68,7 @@ def get_card(image):
 	contours = sorted(contours, key = cv2.contourArea, reverse = True)
 	#find the card by looking through the contours and find the largest approximate 4 corners shape
 	found = False
-	for c in cnts:
+	for c in contours:
 		epsilon =  EPSILON_TORELANCE*cv2.arcLength(c, True)
 		approx = cv2.approxPolyDP(c,epsilon, True)
 		if len(approx) == 4:
