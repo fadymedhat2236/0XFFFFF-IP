@@ -190,6 +190,9 @@ def get_faculty_id_name(lines):
 	#print faculty_id
 	return faculty_id,name
 
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+tessdata_dir_config = '--tessdata-dir "C:\\Program Files\\Tesseract-OCR\\tessdata"'
 def analyze_image(studentIdImage, nationalIdImage):
 	ret = get_card(studentIdImage)
 	if ret[0]==False:
@@ -200,10 +203,19 @@ def analyze_image(studentIdImage, nationalIdImage):
 		return 'please take another photo of your national card'
 	national_card = ret[1]
 	#n = get_lines(national_card)
+	im = national_card[int(national_card.shape[0]*3.1/4):int(national_card.shape[0]*3.6/4),int(national_card.shape[1]*1.2/3):]
+	#im = cv2.pyrUp(im)
+	im = cv2.morphologyEx(im, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)))
+	"""
+	cv2.imshow("img",im)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	"""
+	n_id=str(pytesseract.image_to_string(im,lang='ara_number',config =tessdata_dir_config)).replace(" ","")
 	f = get_lines(student_card,False)
-	n_id =  get_lines(national_card)[0]
+	#n_id =  get_lines(national_card)[0]
 	f_id,name =  get_faculty_id_name(f)
 	print(n_id)
 	print(f_id)
-	return True,name,f_id,to_english(n_id)
+	return True,name,f_id,n_id
 	
