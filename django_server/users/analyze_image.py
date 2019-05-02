@@ -19,7 +19,6 @@ ADAPTIVE_C = 10
 def order_points(pts):
 	# return is array of pts ordered as top_left,top_right,bottom_right,bottom_left
 	rect = np.zeros((4, 2), dtype = "float32")
-	
 	s = pts.sum(axis = 1)
 	rect[0] = pts[np.argmin(s)]
 	rect[2] = pts[np.argmax(s)]
@@ -30,49 +29,44 @@ def order_points(pts):
  
 	return rect
 
-def four_point_transform(image, pts):
+def get_prespective_transform(image, pts):
+	# return a rectangle of only the card image by making use of prespective transform
 	rect = order_points(pts)
-	(tl, tr, br, bl) = rect
+	(top_left, top_right, bottom_right, bottom_left) = rect
  
-	widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-	widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-	maxWidth = max(int(widthA), int(widthB))
+	widthA = np.sqrt(((bottom_right[0] - bottom_left[0]) ** 2) + ((bottom_right[1] - bottom_left[1]) ** 2))
+	widthB = np.sqrt(((top_right[0] - top_left[0]) ** 2) + ((top_right[1] - top_left[1]) ** 2))
+	width = max(int(widthA), int(widthB))
  
-	heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-	heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-	maxHeight = max(int(heightA), int(heightB))
+	heightA = np.sqrt(((top_right[0] - bottom_right[0]) ** 2) + ((top_right[1] - bottom_right[1]) ** 2))
+	heightB = np.sqrt(((top_left[0] - bottom_left[0]) ** 2) + ((top_left[1] - bottom_left[1]) ** 2))
+	height = max(int(heightA), int(heightB))
  
 	perfect_rect = np.array([
 		[0, 0],
-		[maxWidth - 1, 0],
-		[maxWidth - 1, maxHeight - 1],
-		[0, maxHeight - 1]], dtype = "float32")
+		[width - 1, 0],
+		[width - 1, height - 1],
+		[0, height - 1]], dtype = "float32")
  
 	# prespective transform
 	M = cv2.getPerspectiveTransform(rect, perfect_rect)
-	warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+	warped = cv2.warpPerspective(image, M, (width, height))
 	return warped
 
 
 def get_card(image):
 	original = image.copy()
-	#find edges and dilation
+	#find edges and dilation to connect broken edges
 	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	gray_blured = cv2.GaussianBlur(gray, (GAUSSIAN_KERNEL_SIZE,GAUSSIAN_KERNEL_SIZE), 0)
 	edges = cv2.Canny(gray_blured, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
 	kernel = np.ones((DILATION_KERNEL_SIZE,DILATION_KERNEL_SIZE),np.uint8)
 	edges = cv2.dilate(edges,kernel)
-	"""
-	cv2.imshow("step1",edges)
-	cv2.waitKey(0)
-	cv2.destroyAllWindows()
-	"""
-	#contour and get the largest 5 contours
-	cnts = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-	cnts = imutils.grab_contours(cnts)
-	cnts = sorted(cnts, key = cv2.contourArea, reverse = True)[:5]
-
-	#find the card contour
+	#find the contours in the edges and sort them by area
+	contours = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+	contours = imutils.grab_contours(contours)
+	contours = sorted(contours, key = cv2.contourArea, reverse = True)
+	#find the card by looking through the contours and find the largest approximate 4 corners shape
 	found = False
 	for c in cnts:
 		epsilon =  EPSILON_TORELANCE*cv2.arcLength(c, True)
@@ -84,22 +78,10 @@ def get_card(image):
 	if found == False:
 		return False
 	cv2.drawContours(image, [card], -1, (0, 255, 0), 2)
-	"""
-	cv2.imshow("step2", image)
-	cv2.waitKey(0)
-	cv2.destroyAllWindows()
-	"""
-	cropped = four_point_transform(original, card.reshape(4, 2))
+	#make prespective transform to get only the card image
+	cropped = get_prespective_transform(original, card.reshape(4, 2))
 	cropped_gray = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
 	words = cv2.adaptiveThreshold(cropped_gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,ADATIVE_SIZE,ADAPTIVE_C)
-	
-	"""
-	cv2.imshow("step3",words)
-	cv2.waitKey(0)
-	cv2.destroyAllWindows()
-	"""
-	#return the card image only
-	#cv2.imwrite('image.jpg',words)
 	return True,words
 
 # functions for dealing with the ocr response
